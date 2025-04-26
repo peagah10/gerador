@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Boletins Escolares</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            .dark\:bg-gray-800 {
+                background-color: #1a202c;
+            }
+            .dark\:text-white {
+                color: #fff;
+            }
+            .dark\:border-gray-600 {
+                border-color: #4a5568;
+            }
+            .dark\:bg-gray-700 {
+                background-color: #2d3748;
+            }
+        }
+        
+        /* Animação de loading */
+        .spinner {
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 3px solid #5D5CDE;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Ocultar o texto do tipo de arquivo no input de arquivo */
+        input[type="file"]::-webkit-file-upload-button {
+            visibility: hidden;
+            width: 0;
+        }
+        
+        /* Estilos para a barra de progresso */
+        .progress-bar {
+            background-color: #ddd;
+            border-radius: 4px;
+            height: 10px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .progress-bar-fill {
+            background-color: #5D5CDE;
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-800 min-h-screen transition-colors duration-150">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-10 text-center">
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-3">
+                📊 Gerador de Boletins Escolares
+            </h1>
+            <p class="text-gray-600 dark:text-gray-300">
+                Gere boletins individuais preservando o formato original
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Coluna de configurações -->
+            <div class="lg:col-span-4 bg-gray-50 dark:bg-gray-700 p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+                    ⚙️ Configurações
+                </h2>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Bimestre
+                    </label>
+                    <select id="bimestre" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                        <option value="1º BI">1º BIMESTRE</option>
+                        <option value="2º BI">2º BIMESTRE</option>
+                        <option value="3º BI">3º BIMESTRE</option>
+                        <option value="4º BI">4º BIMESTRE</option>
+                    </select>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Turma
+                    </label>
+                    <input type="text" id="turma" value="7º ANO A" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Nome da Escola
+                    </label>
+                    <input type="text" id="nomeEscola" value="EMEB SAGRADA FAMÍLIA" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Limite de Faltas para Frequência
+                    </label>
+                    <input type="number" id="limiteFaltas" value="12" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Alunos com faltas acima deste valor serão marcados como "NÃO FREQUENTE"</p>
+                </div>
+                
+                <hr class="my-6 border-gray-300 dark:border-gray-600">
+                
+                <div class="mb-4">
+                    <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-2">
+                        📄 Modelo de Boletim
+                    </h3>
+                    <div class="flex items-center justify-center w-full">
+                        <label class="flex flex-col w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6" id="modeloPlaceholder">
+                                <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                                <p class="pt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    Carregue o modelo (BOLETIM - ALUNO.xlsx)
+                                </p>
+                            </div>
+                            <div class="hidden flex-col items-center justify-center pt-5 pb-6" id="modeloInfo">
+                                <svg class="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                <p class="pt-1 text-sm text-gray-700 dark:text-gray-300 font-medium" id="modeloNome"></p>
+                            </div>
+                            <input type="file" id="modeloFile" accept=".xlsx" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Opção para carregar logo -->
+                <div class="mb-4">
+                    <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-2">
+                        🖼️ Logomarca (Opcional)
+                    </h3>
+                    <div class="flex items-center justify-center w-full">
+                        <label class="flex flex-col w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6" id="logoPlaceholder">
+                                <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                                <p class="pt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    Carregue a logomarca (opcional)
+                                </p>
+                            </div>
+                            <div class="hidden flex-col items-center justify-center pt-5 pb-6" id="logoInfo">
+                                <img id="logoPreview" class="max-h-16 max-w-full mb-2" />
+                                <p class="pt-1 text-sm text-gray-700 dark:text-gray-300 font-medium" id="logoNome"></p>
+                            </div>
+                            <input type="file" id="logoFile" accept="image/*" class="hidden">
+                        </label>
+                    </div>
+                    <div class="mt-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Célula da Logo (ex: A1)
+                        </label>
+                        <input type="text" id="celulaLogo" value="A1" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                    </div>
+                </div>
+                
+                <div class="my-8">
+                    <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-2">
+                        📚 Disciplinas
+                    </h3>
+                    <div class="space-y-4" id="disciplinasContainer">
+                        <!-- As disciplinas serão adicionadas dinamicamente aqui -->
+                    </div>
+                    <div class="mt-4">
+                        <button id="addDisciplinaBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Adicionar Disciplina
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Coluna principal -->
+            <div class="lg:col-span-8 bg-white dark:bg-gray-700 p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+                    🔧 Mapeamento de Células
+                </h2>
+                
+                <div class="mb-6 bg-yellow-50 dark:bg-yellow-900 p-4 rounded-md">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                Importante
+                            </h3>
+                            <div class="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
+                                <p>
+                                    O sistema preservará o layout do modelo original.
+                                    Configure cuidadosamente o mapeamento das células para garantir que os dados sejam inseridos corretamente.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-2">
+                        Cabeçalho do Boletim
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Célula da Turma
+                            </label>
+                            <input type="text" id="celulaTurma" value="I3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Célula do Bimestre
+                            </label>
+                            <input type="text" id="celulaBimestre" value="I4" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Célula do Nome do Aluno
+                            </label>
+                            <input type="text" id="celulaAluno" value="B6" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-2">
+                        Configurações Adicionais
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Célula do Título do Boletim
+                            </label>
+                            <input type="text" id="celulaTitulo" value="A5" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Texto da Situação de Faltas
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="text" id="textoFrequente" value="FREQUENTE" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                                <input type="text" id="textoNaoFrequente" value="NÃO FREQUENTE" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="mapeamentoDisciplinas" class="space-y-6">
+                    <div class="flex justify-center items-center p-10 text-gray-500 dark:text-gray-400">
+                        <p>Adicione disciplinas para configurar o mapeamento de células</p>
+                    </div>
+                </div>
+                
+                <div class="mt-8">
+                    <button id="gerarBoletinsBtn" class="w-full inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Gerar Boletins
+                    </button>
+                </div>
+                
+                <div id="processamento" class="mt-6 hidden">
+                    <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-2">
+                        🔄 Processamento
+                    </h3>
+                    <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-md">
+                        <div class="mb-2 flex justify-between">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300" id="progressoTexto">Processando...</span>
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300" id="progressoPercentual">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-bar-fill" id="progressoIndicador"></div>
+                        </div>
+                        <div id="logContainer" class="mt-4 max-h-40 overflow-y-auto bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs text-gray-700 dark:text-gray-300 font-mono hidden"></div>
+                    </div>
+                    
+                    <div class="mt-4 flex flex-col items-center">
+                        <button id="downloadBtn" class="hidden inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            Download dos Boletins (ZIP)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar modo escuro
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Lista de disciplinas padrão do currículo escolar
+        const disciplinasPadrao = [
+            "LÍNGUA PORTUGUESA",
+            "ARTE", 
+            "EDUCAÇÃO FÍSICA", 
+            "LÍNGUA INGLESA", 
+            "MATEMÁTICA", 
+            "CIÊNCIAS",
+            "HISTÓRIA", 
+            "GEOGRAFIA", 
+            "ENSINO RELIGIOSO", 
+            "PENSAMENTO COMPUTACIONAL", 
+            "ACOMPANHAMENTO PEDAGÓGICO EM LÍNGUA PORTUGUESA",
+            "ACOMPANHAMENTO PEDAGÓGICO EM MATEMÁTICA", 
+            "EDUCAÇÃO FINANCEIRA", 
+            "ESPORTES", 
+            "LUTAS", 
+            "PROJETO DE VIDA",
+            "AGROECOLOGIA", 
+            "MÚSICA INSTRUMENTAL"
+        ];
+
+        // Elementos do DOM
+        const bimestreSelect = document.getElementById('bimestre');
+        const turmaInput = document.getElementById('turma');
+        const nomeEscolaInput = document.getElementById('nomeEscola');
+        const limiteFaltasInput = document.getElementById('limiteFaltas');
+        const textoFrequenteInput = document.getElementById('textoFrequente');
+        const textoNaoFrequenteInput = document.getElementById('textoNaoFrequente');
+        const modeloFileInput = document.getElementById('modeloFile');
+        const modeloPlaceholder = document.getElementById('modeloPlaceholder');
+        const modeloInfo = document.getElementById('modeloInfo');
+        const modeloNome = document.getElementById('modeloNome');
+        const logoFileInput = document.getElementById('logoFile');
+        const logoPlaceholder = document.getElementById('logoPlaceholder');
+        const logoInfo = document.getElementById('logoInfo');
+        const logoNome = document.getElementById('logoNome');
+        const logoPreview = document.getElementById('logoPreview');
+        const celulaLogoInput = document.getElementById('celulaLogo');
+        const disciplinasContainer = document.getElementById('disciplinasContainer');
+        const addDisciplinaBtn = document.getElementById('addDisciplinaBtn');
+        const mapeamentoDisciplinas = document.getElementById('mapeamentoDisciplinas');
+        const gerarBoletinsBtn = document.getElementById('gerarBoletinsBtn');
+        const processamento = document.getElementById('processamento');
+        const progressoTexto = document.getElementById('progressoTexto');
+        const progressoPercentual = document.getElementById('progressoPercentual');
+        const progressoIndicador = document.getElementById('progressoIndicador');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const logContainer = document.getElementById('logContainer');
+        const celulaTurmaInput = document.getElementById('celulaTurma');
+        const celulaBimestreInput = document.getElementById('celulaBimestre');
+        const celulaAlunoInput = document.getElementById('celulaAluno');
+        const celulaTituloInput = document.getElementById('celulaTitulo');
+
+        // Variáveis globais
+        let modeloFile = null;
+        let logoFile = null;
+        let logoBase64 = null;
+        let disciplinasFiles = {};
+        let disciplinas = [];
+        let mapeamento = {};
+        let alunosProcessados = 0;
+        let totalAlunos = 0;
+        let zipBlob = null;
+
+        // Funções de suporte
+        function adicionarLog(mensagem) {
+            if (!logContainer.classList.contains('block')) {
+                logContainer.classList.remove('hidden');
+                logContainer.classList.add('block');
+            }
+            
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `${new Date().toLocaleTimeString()}: ${mensagem}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function adicionarEventListeners() {
+            // Upload do modelo de boletim
+            modeloFileInput.addEventListener('change', handleModeloFileChange);
+
+            // Upload da logomarca
+            logoFileInput.addEventListener('change', handleLogoFileChange);
+
+            // Adicionar disciplina
+            addDisciplinaBtn.addEventListener('click', adicionarDisciplina);
+
+            // Gerar boletins
+            gerarBoletinsBtn.addEventListener('click', iniciarGeracaoBoletins);
+
+            // Download dos boletins
+            downloadBtn.addEventListener('click', () => {
+                if (zipBlob) {
+                    saveAs(zipBlob, `Boletins_${bimestreSelect.value.replace(' ', '_')}.zip`);
+                }
+            });
+        }
+
+        function handleModeloFileChange(event) {
+            if (event.target.files.length > 0) {
+                modeloFile = event.target.files[0];
+                modeloPlaceholder.classList.add('hidden');
+                modeloInfo.classList.remove('hidden');
+                modeloNome.textContent = modeloFile.name;
+            }
+        }
+
+        function handleLogoFileChange(event) {
+            if (event.target.files.length > 0) {
+                logoFile = event.target.files[0];
+                logoPlaceholder.classList.add('hidden');
+                logoInfo.classList.remove('hidden');
+                logoNome.textContent = logoFile.name;
+                
+                // Criar preview da imagem
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    logoPreview.src = e.target.result;
+                    logoBase64 = e.target.result;
+                };
+                reader.readAsDataURL(logoFile);
+            }
+        }
+
+        function adicionarDisciplina() {
+            const disciplinaId = Date.now().toString();
+            const disciplinaContainer = document.createElement('div');
+            disciplinaContainer.id = `disciplina-${disciplinaId}`;
+            disciplinaContainer.className = 'p-4 border border-gray-200 dark:border-gray-600 rounded-lg';
+
+            // Interface para selecionar uma disciplina e carregar o arquivo
+            const disciplinaHTML = `
+                <div class="flex flex-col md:flex-row md:items-center justify-between">
+                    <div class="mb-2 md:mb-0 md:mr-4">
+                        <select id="disciplina-select-${disciplinaId}" class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                            <option value="">-- Selecione uma disciplina --</option>
+                            ${disciplinasPadrao.map(d => `<option value="${d}">${d}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="flex items-center">
+                        <label class="flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer mr-2">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                            </svg>
+                            Arquivo
+                            <input type="file" id="disciplina-file-${disciplinaId}" accept=".xlsx" class="hidden">
+                        </label>
+                        <button id="remover-disciplina-${disciplinaId}" class="inline-flex items-center justify-center p-2 border border-transparent rounded-md text-red-600 hover:bg-red-100 dark:hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="disciplina-info-${disciplinaId}" class="mt-2 hidden">
+                    <div class="flex items-center text-sm text-green-600 dark:text-green-400">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span id="disciplina-file-nome-${disciplinaId}"></span>
+                    </div>
+                </div>
+            `;
+
+            disciplinaContainer.innerHTML = disciplinaHTML;
+            disciplinasContainer.appendChild(disciplinaContainer);
+
+            // Adicionar event listeners para a nova disciplina
+            const disciplinaSelect = document.getElementById(`disciplina-select-${disciplinaId}`);
+            const disciplinaFile = document.getElementById(`disciplina-file-${disciplinaId}`);
+            const removerDisciplinaBtn = document.getElementById(`remover-disciplina-${disciplinaId}`);
+            const disciplinaInfo = document.getElementById(`disciplina-info-${disciplinaId}`);
+            const disciplinaFileNome = document.getElementById(`disciplina-file-nome-${disciplinaId}`);
+
+            disciplinaSelect.addEventListener('change', () => {
+                if (disciplinaSelect.value) {
+                    atualizarDisciplina(disciplinaId, disciplinaSelect.value);
+                }
+            });
+
+            disciplinaFile.addEventListener('change', (event) => {
+                if (event.target.files.length > 0) {
+                    const file = event.target.files[0];
+                    disciplinasFiles[disciplinaId] = file;
+                    disciplinaInfo.classList.remove('hidden');
+                    disciplinaFileNome.textContent = file.name;
+                    
+                    // Se ainda não tiver selecionado uma disciplina, tentar inferir do nome do arquivo
+                    if (!disciplinaSelect.value) {
+                        const filename = file.name.toUpperCase();
+                        const match = filename.match(/BOLETIM\s*-\s*(.+?)\.xlsx/i);
+                        if (match) {
+                            const nomeDisciplina = match[1].trim().toUpperCase();
+                            // Encontrar a disciplina mais próxima na lista
+                            const disciplinaPadrao = disciplinasPadrao.find(d => 
+                                d.toUpperCase().includes(nomeDisciplina) || 
+                                nomeDisciplina.includes(d.toUpperCase())
+                            );
+                            
+                            if (disciplinaPadrao) {
+                                disciplinaSelect.value = disciplinaPadrao;
+                                atualizarDisciplina(disciplinaId, disciplinaPadrao);
+                            }
+                        }
+                    }
+                }
+            });
+
+            removerDisciplinaBtn.addEventListener('click', () => {
+                removerDisciplina(disciplinaId);
+            });
+
+            // Quando uma nova disciplina é adicionada, atualizamos o mapeamento
+            atualizarMapeamentoDisciplinas();
+        }
+
+        function atualizarDisciplina(disciplinaId, nomeDisciplina) {
+            // Verificar se já existe uma disciplina com esse nome
+            const disciplinaExistente = disciplinas.find(d => d.nome === nomeDisciplina);
+            if (disciplinaExistente && disciplinaExistente.id !== disciplinaId) {
+                alert(`A disciplina "${nomeDisciplina}" já foi adicionada.`);
+                document.getElementById(`disciplina-select-${disciplinaId}`).value = "";
+                return;
+            }
+
+            // Atualizar ou adicionar a disciplina na lista
+            const disciplinaIndex = disciplinas.findIndex(d => d.id === disciplinaId);
+            if (disciplinaIndex >= 0) {
+                disciplinas[disciplinaIndex].nome = nomeDisciplina;
+            } else {
+                disciplinas.push({ id: disciplinaId, nome: nomeDisciplina });
+            }
+
+            // Atualizar o mapeamento de células para as disciplinas
+            atualizarMapeamentoDisciplinas();
+        }
+
+        function removerDisciplina(disciplinaId) {
+            // Remover o elemento do DOM
+            const disciplinaElement = document.getElementById(`disciplina-${disciplinaId}`);
+            if (disciplinaElement) {
+                disciplinaElement.remove();
+            }
+            
+            // Remover da lista de disciplinas
+            disciplinas = disciplinas.filter(d => d.id !== disciplinaId);
+            
+            // Remover o arquivo associado
+            if (disciplinasFiles[disciplinaId]) {
+                delete disciplinasFiles[disciplinaId];
+            }
+            
+            // Remover do mapeamento
+            if (mapeamento[disciplinaId]) {
+                delete mapeamento[disciplinaId];
+            }
+            
+            // Atualizar o mapeamento na interface
+            atualizarMapeamentoDisciplinas();
+        }
+
+        function atualizarMapeamentoDisciplinas() {
+            // Limpar o container de mapeamento
+            mapeamentoDisciplinas.innerHTML = '';
+            
+            if (disciplinas.length === 0) {
+                mapeamentoDisciplinas.innerHTML = `
+                    <div class="flex justify-center items-center p-10 text-gray-500 dark:text-gray-400">
+                        <p>Adicione disciplinas para configurar o mapeamento de células</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Adicionar mapeamento para cada disciplina
+            disciplinas.forEach((disciplina, index) => {
+                // Determinar a linha do modelo para esta disciplina
+                // No modelo fornecido, as disciplinas começam na linha 8
+                const linhaModelo = getLinhaModelo(disciplina.nome);
+                const disciplinaId = disciplina.id;
+                const nomeDisciplina = disciplina.nome;
+                
+                // Criar o elemento de mapeamento para a disciplina
+                const mapeamentoElement = document.createElement('div');
+                mapeamentoElement.id = `mapeamento-${disciplinaId}`;
+                mapeamentoElement.className = 'p-4 border border-gray-200 dark:border-gray-600 rounded-lg';
+                
+                // Template para o mapeamento
+                const mapeamentoHTML = `
+                    <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-4">
+                        ${nomeDisciplina}
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Célula AV1
+                            </label>
+                            <input type="text" id="disciplina-${disciplinaId}-av1" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white" value="C${linhaModelo}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Célula AV2
+                            </label>
+                            <input type="text" id="disciplina-${disciplinaId}-av2" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white" value="D${linhaModelo}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Célula AV3
+                            </label>
+                            <input type="text" id="disciplina-${disciplinaId}-av3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white" value="E${linhaModelo}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Célula Média
+                            </label>
+                            <input type="text" id="disciplina-${disciplinaId}-media" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white" value="F${linhaModelo}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Célula Faltas
+                            </label>
+                            <input type="text" id="disciplina-${disciplinaId}-faltas" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white" value="G${linhaModelo}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Célula Situação Faltas
+                            </label>
+                            <input type="text" id="disciplina-${disciplinaId}-situacao" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white" value="I${linhaModelo}">
+                        </div>
+                    </div>
+                `;
+                
+                mapeamentoElement.innerHTML = mapeamentoHTML;
+                mapeamentoDisciplinas.appendChild(mapeamentoElement);
+                
+                // Inicializar o mapeamento para esta disciplina se não existir
+                if (!mapeamento[disciplinaId]) {
+                    mapeamento[disciplinaId] = {
+                        nome: nomeDisciplina,
+                        av1: `C${linhaModelo}`,
+                        av2: `D${linhaModelo}`,
+                        av3: `E${linhaModelo}`,
+                        media: `F${linhaModelo}`,
+                        faltas: `G${linhaModelo}`,
+                        situacao: `I${linhaModelo}`
+                    };
+                }
+                
+                // Adicionar event listeners para os inputs de mapeamento
+                const av1Input = document.getElementById(`disciplina-${disciplinaId}-av1`);
+                const av2Input = document.getElementById(`disciplina-${disciplinaId}-av2`);
+                const av3Input = document.getElementById(`disciplina-${disciplinaId}-av3`);
+                const mediaInput = document.getElementById(`disciplina-${disciplinaId}-media`);
+                const faltasInput = document.getElementById(`disciplina-${disciplinaId}-faltas`);
+                const situacaoInput = document.getElementById(`disciplina-${disciplinaId}-situacao`);
+                
+                av1Input.addEventListener('change', () => mapeamento[disciplinaId].av1 = av1Input.value);
+                av2Input.addEventListener('change', () => mapeamento[disciplinaId].av2 = av2Input.value);
+                av3Input.addEventListener('change', () => mapeamento[disciplinaId].av3 = av3Input.value);
+                mediaInput.addEventListener('change', () => mapeamento[disciplinaId].media = mediaInput.value);
+                faltasInput.addEventListener('change', () => mapeamento[disciplinaId].faltas = faltasInput.value);
+                situacaoInput.addEventListener('change', () => mapeamento[disciplinaId].situacao = situacaoInput.value);
+            });
+        }
+
+        // Função para obter a linha correspondente à disciplina no modelo
+        function getLinhaModelo(nomeDisciplina) {
+            // Mapear as disciplinas para suas linhas no modelo baseado no conteúdo compartilhado
+            const mapaLinhas = {
+                "LÍNGUA PORTUGUESA": 8,
+                "ARTE": 9,
+                "EDUCAÇÃO FÍSICA": 10,
+                "LÍNGUA INGLESA": 11,
+                "MATEMÁTICA": 12,
+                "CIÊNCIAS": 13,
+                "HISTÓRIA": 14,
+                "GEOGRAFIA": 15,
+                "ENSINO RELIGIOSO": 16,
+                "PENSAMENTO COMPUTACIONAL": 17,
+                "ACOMPANHAMENTO PEDAGÓGICO EM LÍNGUA PORTUGUESA": 18,
+                "ACOMPANHAMENTO PEDAGÓGICO EM MATEMÁTICA": 19,
+                "EDUCAÇÃO FINANCEIRA": 20,
+                "ESPORTES": 21,
+                "LUTAS": 22,
+                "PROJETO DE VIDA": 23,
+                "AGROECOLOGIA": 24,
+                "MÚSICA INSTRUMENTAL": 25
+            };
+
+            // Retornar a linha correspondente ou uma linha calculada para disciplinas não mapeadas
+            return mapaLinhas[nomeDisciplina] || 8 + disciplinas.findIndex(d => d.nome === nomeDisciplina);
+        }
+
+        async function iniciarGeracaoBoletins() {
+            // Validar se os dados necessários foram fornecidos
+            if (!modeloFile) {
+                alert('Por favor, carregue o modelo de boletim.');
+                return;
+            }
+            
+            if (disciplinas.length === 0) {
+                alert('Por favor, adicione pelo menos uma disciplina.');
+                return;
+            }
+            
+            const disciplinasSemArquivo = disciplinas.filter(d => !disciplinasFiles[d.id]);
+            if (disciplinasSemArquivo.length > 0) {
+                const disciplinasNomes = disciplinasSemArquivo.map(d => d.nome).join(', ');
+                alert(`As seguintes disciplinas não têm arquivos associados: ${disciplinasNomes}`);
+                return;
+            }
+            
+            // Mostrar a seção de processamento
+            processamento.classList.remove('hidden');
+            progressoTexto.textContent = 'Processando planilhas...';
+            progressoPercentual.textContent = '0%';
+            progressoIndicador.style.width = '0%';
+            downloadBtn.classList.add('hidden');
+            gerarBoletinsBtn.disabled = true;
+            logContainer.innerHTML = '';
+            
+            try {
+                // Carregar o modelo de boletim
+                progressoTexto.textContent = 'Carregando modelo de boletim...';
+                adicionarLog('Carregando modelo de boletim...');
+                
+                const modeloArrayBuffer = await modeloFile.arrayBuffer();
+                const modeloWorkbook = new ExcelJS.Workbook();
+                await modeloWorkbook.xlsx.load(modeloArrayBuffer);
+                
+                adicionarLog('Modelo carregado com sucesso.');
+                
+                // Processar logo se fornecida
+                let logoImagem = null;
+                if (logoFile) {
+                    adicionarLog('Processando logomarca...');
+                    logoImagem = {
+                        base64: logoBase64,
+                        celula: celulaLogoInput.value
+                    };
+                }
+                
+                // Carregar os dados das disciplinas
+                const dadosDisciplinas = {};
+                for (const disciplina of disciplinas) {
+                    const file = disciplinasFiles[disciplina.id];
+                    if (file) {
+                        progressoTexto.textContent = `Processando ${disciplina.nome}...`;
+                        adicionarLog(`Processando disciplina: ${disciplina.nome}`);
+                        const dados = await carregarDadosDisciplina(file, disciplina);
+                        dadosDisciplinas[disciplina.id] = dados;
+                    }
+                }
+                
+                // Extrair a lista de todos os alunos
+                adicionarLog('Extraindo lista de alunos...');
+                const todosAlunos = extrairListaAlunos(dadosDisciplinas);
+                totalAlunos = todosAlunos.length;
+                alunosProcessados = 0;
+                
+                if (totalAlunos === 0) {
+                    throw new Error('Nenhum aluno encontrado nas planilhas.');
+                }
+                
+                adicionarLog(`Encontrados ${totalAlunos} alunos.`);
+                progressoTexto.textContent = `Gerando boletins para ${totalAlunos} alunos...`;
+                
+                // Criar os boletins individuais
+                const zip = new JSZip();
+                const bimestreAtual = bimestreSelect.value;
+                const turmaAtual = turmaInput.value;
+                const nomeEscola = nomeEscolaInput.value;
+                
+                // Configuração das células do boletim
+                const configCelulas = {
+                    turma: celulaTurmaInput.value,
+                    bimestre: celulaBimestreInput.value,
+                    aluno: celulaAlunoInput.value,
+                    titulo: celulaTituloInput.value
+                };
+
+                // Configuração de situação de faltas
+                const configSituacao = {
+                    limiteFaltas: parseInt(limiteFaltasInput.value) || 12,
+                    textoFrequente: textoFrequenteInput.value || "FREQUENTE",
+                    textoNaoFrequente: textoNaoFrequenteInput.value || "NÃO FREQUENTE"
+                };
+                
+                // Gerar boletins para cada aluno
+                for (const aluno of todosAlunos) {
+                    adicionarLog(`Gerando boletim para: ${aluno}`);
+                    await gerarBoletimAluno(
+                        aluno, 
+                        dadosDisciplinas, 
+                        modeloWorkbook, 
+                        zip, 
+                        bimestreAtual, 
+                        turmaAtual, 
+                        configCelulas, 
+                        configSituacao,
+                        nomeEscola,
+                        logoImagem
+                    );
+                    atualizarProgresso();
+                }
+                
+                // Gerar o arquivo ZIP
+                adicionarLog('Gerando arquivo ZIP com todos os boletins...');
+                zipBlob = await zip.generateAsync({ type: 'blob' });
+                
+                // Exibir o botão de download
+                downloadBtn.classList.remove('hidden');
+                
+                progressoTexto.textContent = 'Processamento concluído com sucesso!';
+                adicionarLog('Processamento concluído com sucesso!');
+                
+            } catch (error) {
+                progressoTexto.textContent = `Erro: ${error.message}`;
+                adicionarLog(`ERRO: ${error.message}`);
+                console.error('Erro ao gerar boletins:', error);
+            } finally {
+                gerarBoletinsBtn.disabled = false;
+            }
+        }
+
+        async function carregarDadosDisciplina(file, disciplina) {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const workbook = new ExcelJS.Workbook();
+                    await workbook.xlsx.load(arrayBuffer);
+                    
+                    // Obter a planilha do bimestre atual
+                    const sheetName = `Notas ${bimestreSelect.value}`;
+                    const worksheet = workbook.getWorksheet(sheetName);
+                    
+                    if (!worksheet) {
+                        throw new Error(`Planilha "${sheetName}" não encontrada em ${file.name}`);
+                    }
+                    
+                    // Extrair dados das células
+                    const dados = [];
+                    
+                    // Início dos dados geralmente começa na linha 8
+                    let emptyRowCount = 0;
+                    
+                    // Iterar pelas linhas da planilha
+                    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+                        if (rowNumber < 8) return; // Pular o cabeçalho
+                        
+                        const nome = row.getCell(2).value;
+                        if (!nome) return;
+                        
+                        let nomeAluno = '';
+                        // Extrair nome dependendo do tipo de célula
+                        if (typeof nome === 'string') {
+                            nomeAluno = nome.trim();
+                        } else if (nome && nome.result) {
+                            nomeAluno = nome.result.toString().trim();
+                        } else if (nome && nome.text) {
+                            nomeAluno = nome.text.trim();
+                        } else if (nome && nome.richText) {
+                            nomeAluno = nome.richText.map(rt => rt.text).join('').trim();
+                        }
+                        
+                        if (nomeAluno) {
+                            // Limpar nome se contiver comandos EXCEL
+                            if (nomeAluno.includes('COMPUTED_VALUE')) {
+                                const match = nomeAluno.match(/["']([^"']+)["']$/);
+                                nomeAluno = match ? match[1].trim() : nomeAluno;
+                            }
+                            
+                            // Extrair notas e faltas
+                            const av1Value = row.getCell(3).value;
+                            const av2Value = row.getCell(4).value;
+                            const av3Value = row.getCell(5).value;
+                            const faltasValue = row.getCell(9).value;
+                            
+                            const av1 = av1Value !== null ? (typeof av1Value === 'number' ? av1Value : parseFloat(av1Value) || 0) : 0;
+                            const av2 = av2Value !== null ? (typeof av2Value === 'number' ? av2Value : parseFloat(av2Value) || 0) : 0;
+                            const av3 = av3Value !== null ? (typeof av3Value === 'number' ? av3Value : parseFloat(av3Value) || 0) : 0;
+                            const faltas = faltasValue !== null ? (typeof faltasValue === 'number' ? faltasValue : parseInt(faltasValue) || 0) : 0;
+                            
+                            // Calcular média como soma das 3 notas
+                            const media = av1 + av2 + av3;
+                            
+                            dados.push({
+                                nome: nomeAluno,
+                                av1,
+                                av2,
+                                av3,
+                                media,
+                                faltas
+                            });
+                        }
+                    });
+                    
+                    resolve({
+                        disciplina: disciplina.nome,
+                        dados: dados
+                    });
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
+        function extrairListaAlunos(dadosDisciplinas) {
+            const alunosSet = new Set();
+            
+            // Coletar todos os nomes de alunos de todas as disciplinas
+            Object.values(dadosDisciplinas).forEach(disciplina => {
+                disciplina.dados.forEach(aluno => {
+                    if (aluno.nome && typeof aluno.nome === 'string' && aluno.nome.trim().length > 0) {
+                        alunosSet.add(aluno.nome.trim());
+                    }
+                });
+            });
+            
+            // Converter o Set para Array e ordenar alfabeticamente
+            return Array.from(alunosSet).sort();
+        }
+
+        async function gerarBoletimAluno(
+            aluno, 
+            dadosDisciplinas, 
+            modeloWorkbook, 
+            zip, 
+            bimestre, 
+            turma, 
+            configCelulas, 
+            configSituacao,
+            nomeEscola,
+            logoImagem
+        ) {
+            try {
+                // Criar uma cópia do modelo para este aluno
+                const alunoWorkbook = new ExcelJS.Workbook();
+                
+                // Copiar todas as planilhas do modelo
+                modeloWorkbook.eachSheet((sheet, id) => {
+                    const newSheet = alunoWorkbook.addWorksheet(sheet.name, {
+                        views: sheet.views,
+                        properties: sheet.properties
+                    });
+                    
+                    // Copiar largura das colunas
+                    sheet.columns.forEach((column, index) => {
+                        newSheet.getColumn(index + 1).width = column.width;
+                    });
+                    
+                    // Copiar altura das linhas
+                    Object.keys(sheet._rows).forEach(rowId => {
+                        const row = sheet.getRow(parseInt(rowId));
+                        if (row && row.height) {
+                            newSheet.getRow(parseInt(rowId)).height = row.height;
+                        }
+                    });
+                    
+                    // Copiar células, estilos e fórmulas
+                    sheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+                        const newRow = newSheet.getRow(rowNumber);
+                        
+                        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                            const newCell = newRow.getCell(colNumber);
+                            
+                            // Copiar valor e tipo
+                            if (cell.value !== undefined) {
+                                if (cell.formula) {
+                                    newCell.formula = cell.formula;
+                                } else {
+                                    newCell.value = cell.value;
+                                }
+                            }
+                            
+                            // Copiar estilo
+                            if (cell.style) {
+                                newCell.style = JSON.parse(JSON.stringify(cell.style));
+                            }
+                            
+                            // Copiar outras propriedades importantes
+                            newCell.alignment = cell.alignment ? {...cell.alignment} : undefined;
+                            newCell.border = cell.border ? {...cell.border} : undefined;
+                            newCell.fill = cell.fill ? {...cell.fill} : undefined;
+                            newCell.font = cell.font ? {...cell.font} : undefined;
+                            newCell.numFmt = cell.numFmt;
+                        });
+                    });
+                    
+                    // Copiar mesclagens de células
+                    if (sheet._merges) {
+                        Object.keys(sheet._merges).forEach(mergeKey => {
+                            newSheet.mergeCells(sheet._merges[mergeKey]);
+                        });
+                    }
+                });
+                
+                // Obter a primeira planilha para preenchimento
+                const sheet = alunoWorkbook.getWorksheet(1);
+                
+                // Adicionar logomarca se fornecida
+                if (logoImagem && logoImagem.base64) {
+                    try {
+                        const logoDataUrl = logoImagem.base64;
+                        const base64Data = logoDataUrl.split(',')[1];
+                        const logoId = alunoWorkbook.addImage({
+                            base64: base64Data,
+                            extension: logoDataUrl.split(';')[0].split('/')[1]
+                        });
+                        
+                        // Extrair referência da célula
+                        const cellRef = logoImagem.celula.toUpperCase();
+                        const colMatch = cellRef.match(/[A-Z]+/);
+                        const rowMatch = cellRef.match(/\d+/);
+                        
+                        if (colMatch && rowMatch) {
+                            const col = colMatch[0];
+                            const row = parseInt(rowMatch[0]);
+                            
+                            // Calcular a coluna numérica
+                            let colNum = 0;
+                            for (let i = 0; i < col.length; i++) {
+                                colNum = colNum * 26 + (col.charCodeAt(i) - 64);
+                            }
+                            
+                            // Adicionar a imagem
+                            sheet.addImage(logoId, {
+                                tl: { col: colNum - 1, row: row - 1 },
+                                ext: { width: 150, height: 75 } // Tamanho padrão, ajustar conforme necessário
+                            });
+                        }
+                    } catch (error) {
+                        adicionarLog(`Aviso: Não foi possível adicionar a logomarca: ${error.message}`);
+                    }
+                }
+                
+                // Preencher título
+                if (configCelulas.titulo && sheet.getCell(configCelulas.titulo)) {
+                    sheet.getCell(configCelulas.titulo).value = `BOLETIM BIMESTRAL 2025 - ${nomeEscola}`;
+                }
+                
+                // Preencher cabeçalho
+                if (configCelulas.turma && sheet.getCell(configCelulas.turma)) {
+                    sheet.getCell(configCelulas.turma).value = turma;
+                }
+                
+                if (configCelulas.bimestre && sheet.getCell(configCelulas.bimestre)) {
+                    sheet.getCell(configCelulas.bimestre).value = bimestre + "\n2025";
+                }
+                
+                if (configCelulas.aluno && sheet.getCell(configCelulas.aluno)) {
+                    sheet.getCell(configCelulas.aluno).value = aluno;
+                }
+                
+                // Remover o campo "Total de Aulas" na célula H7
+                if (sheet.getCell('H7')) {
+                    sheet.getCell('H7').value = null;
+                }
+                
+                // Preencher dados das disciplinas
+                Object.keys(dadosDisciplinas).forEach(disciplinaId => {
+                    const disciplinaData = dadosDisciplinas[disciplinaId];
+                    const alunoData = disciplinaData.dados.find(d => d.nome === aluno);
+                    
+                    if (alunoData && mapeamento[disciplinaId]) {
+                        const celulas = mapeamento[disciplinaId];
+                        
+                        // Preencher as células correspondentes se existirem
+                        if (celulas.av1 && sheet.getCell(celulas.av1)) {
+                            sheet.getCell(celulas.av1).value = alunoData.av1;
+                        }
+                        
+                        if (celulas.av2 && sheet.getCell(celulas.av2)) {
+                            sheet.getCell(celulas.av2).value = alunoData.av2;
+                        }
+                        
+                        if (celulas.av3 && sheet.getCell(celulas.av3)) {
+                            sheet.getCell(celulas.av3).value = alunoData.av3;
+                        }
+                        
+                        if (celulas.media && sheet.getCell(celulas.media)) {
+                            sheet.getCell(celulas.media).value = alunoData.media;
+                        }
+                        
+                        if (celulas.faltas && sheet.getCell(celulas.faltas)) {
+                            sheet.getCell(celulas.faltas).value = alunoData.faltas;
+                        }
+                        
+                        // Preencher a situação de faltas baseado na quantidade de faltas
+                        if (celulas.situacao && sheet.getCell(celulas.situacao)) {
+                            const situacao = alunoData.faltas >= configSituacao.limiteFaltas
+                                ? configSituacao.textoNaoFrequente
+                                : configSituacao.textoFrequente;
+                            
+                            sheet.getCell(celulas.situacao).value = situacao;
+                            
+                            // Formatação para a situação (vermelho para não frequente, verde para frequente)
+                            if (situacao === configSituacao.textoNaoFrequente) {
+                                sheet.getCell(celulas.situacao).font = {
+                                    color: { argb: 'FFFF0000' }, // Vermelho
+                                    bold: true
+                                };
+                            } else {
+                                sheet.getCell(celulas.situacao).font = {
+                                    color: { argb: 'FF00AA00' }, // Verde
+                                    bold: true
+                                };
+                            }
+                        }
+                    }
+                });
+                
+                // Gerar o arquivo Excel
+                const excelBuffer = await alunoWorkbook.xlsx.writeBuffer();
+                
+                // Adicionar ao ZIP com nome formatado
+                const nomeArquivoLimpo = aluno.replace(/[\/\\:*?"<>|]/g, "_");
+                const nomeArquivo = `Boletim ${bimestre.replace('BI', 'Bimestre')} 2025 - ${nomeArquivoLimpo}.xlsx`;
+                zip.file(nomeArquivo, excelBuffer);
+                
+                return true;
+            } catch (error) {
+                adicionarLog(`Erro ao processar ${aluno}: ${error.message}`);
+                console.error(`Erro ao processar ${aluno}:`, error);
+                return false;
+            }
+        }
+
+        function atualizarProgresso() {
+            alunosProcessados++;
+            const percentual = Math.round((alunosProcessados / totalAlunos) * 100);
+            progressoPercentual.textContent = `${percentual}%`;
+            progressoIndicador.style.width = `${percentual}%`;
+            progressoTexto.textContent = `Processando ${alunosProcessados} de ${totalAlunos} alunos...`;
+        }
+
+        // Adicionar as disciplinas iniciais
+        function inicializarDisciplinasPadrao() {
+            // Adicionar algumas disciplinas comuns por padrão
+            ['LÍNGUA PORTUGUESA', 'MATEMÁTICA', 'HISTÓRIA', 'GEOGRAFIA', 'CIÊNCIAS'].forEach(() => {
+                adicionarDisciplina();
+            });
+        }
+
+        // Inicializar o aplicativo
+        function inicializar() {
+            adicionarEventListeners();
+            inicializarDisciplinasPadrao();
+        }
+
+        // Iniciar a aplicação quando o DOM estiver carregado
+        document.addEventListener('DOMContentLoaded', inicializar);
+    </script>
+</body>
+</html>
