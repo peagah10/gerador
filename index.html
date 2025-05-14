@@ -111,7 +111,7 @@
                         Limite de Faltas para Frequência
                     </label>
                     <input type="number" id="limiteFaltas" value="12" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Alunos com faltas acima deste valor serão marcados como "NÃO FREQUENTE"</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Alunos com faltas acima deste valor serão marcados como "INFREQUENTE"</p>
                 </div>
                 
                 <hr class="my-6 border-gray-300 dark:border-gray-600">
@@ -259,7 +259,7 @@
                             </label>
                             <div class="grid grid-cols-2 gap-2">
                                 <input type="text" id="textoFrequente" value="FREQUENTE" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
-                                <input type="text" id="textoNaoFrequente" value="NÃO FREQUENTE" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
+                                <input type="text" id="textoNaoFrequente" value="INFREQUENTE" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
                             </div>
                         </div>
                     </div>
@@ -333,6 +333,7 @@
             "GEOGRAFIA", 
             "ENSINO RELIGIOSO", 
             "PENSAMENTO COMPUTACIONAL", 
+            "ESTUDOS REGIONAIS", 
             "ACOMPANHAMENTO PEDAGÓGICO EM LÍNGUA PORTUGUESA",
             "ACOMPANHAMENTO PEDAGÓGICO EM MATEMÁTICA", 
             "EDUCAÇÃO FINANCEIRA", 
@@ -701,14 +702,15 @@
                 "GEOGRAFIA": 15,
                 "ENSINO RELIGIOSO": 16,
                 "PENSAMENTO COMPUTACIONAL": 17,
-                "ACOMPANHAMENTO PEDAGÓGICO EM LÍNGUA PORTUGUESA": 18,
-                "ACOMPANHAMENTO PEDAGÓGICO EM MATEMÁTICA": 19,
-                "EDUCAÇÃO FINANCEIRA": 20,
-                "ESPORTES": 21,
-                "LUTAS": 22,
-                "PROJETO DE VIDA": 23,
-                "AGROECOLOGIA": 24,
-                "MÚSICA INSTRUMENTAL": 25
+                "ESTUDOS REGIONAIS": 18,
+                "ACOMPANHAMENTO PEDAGÓGICO EM LÍNGUA PORTUGUESA": 19,
+                "ACOMPANHAMENTO PEDAGÓGICO EM MATEMÁTICA": 20,
+                "EDUCAÇÃO FINANCEIRA": 21,
+                "ESPORTES": 22,
+                "LUTAS": 23,
+                "PROJETO DE VIDA": 24,
+                "AGROECOLOGIA": 25,
+                "MÚSICA INSTRUMENTAL": 26
             };
 
             // Retornar a linha correspondente ou uma linha calculada para disciplinas não mapeadas
@@ -807,7 +809,7 @@
                 const configSituacao = {
                     limiteFaltas: parseInt(limiteFaltasInput.value) || 12,
                     textoFrequente: textoFrequenteInput.value || "FREQUENTE",
-                    textoNaoFrequente: textoNaoFrequenteInput.value || "NÃO FREQUENTE"
+                    textoNaoFrequente: textoNaoFrequenteInput.value || "INFREQUENTE"
                 };
                 
                 // Gerar boletins para cada aluno
