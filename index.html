@@ -85,10 +85,10 @@
                         Bimestre
                     </label>
                     <select id="bimestre" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
-                        <option value="1º BI">1º BIMESTRE</option>
-                        <option value="2º BI">2º BIMESTRE</option>
-                        <option value="3º BI">3º BIMESTRE</option>
-                        <option value="4º BI">4º BIMESTRE</option>
+                        <option value="1º BIMESTRE">1º BIMESTRE</option>
+                        <option value="2º BIMESTRE">2º BIMESTRE</option>
+                        <option value="3º BIMESTRE">3º BIMESTRE</option>
+                        <option value="4º BIMESTRE">4º BIMESTRE</option>
                     </select>
                 </div>
                 
@@ -1141,7 +1141,7 @@
                 
                 // Adicionar ao ZIP com nome formatado
                 const nomeArquivoLimpo = aluno.replace(/[\/\\:*?"<>|]/g, "_");
-                const nomeArquivo = `Boletim ${bimestre.replace('BI', 'Bimestre')} 2025 - ${nomeArquivoLimpo}.xlsx`;
+                const nomeArquivo = `Boletim ${bimestre} 2025 - ${nomeArquivoLimpo}.xlsx`;
                 zip.file(nomeArquivo, excelBuffer);
                 
                 return true;
