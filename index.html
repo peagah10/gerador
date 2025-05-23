@@ -856,19 +856,46 @@
                     const workbook = new ExcelJS.Workbook();
                     await workbook.xlsx.load(arrayBuffer);
                     
-                    // Obter a planilha do bimestre atual
-                    const sheetName = `Notas ${bimestreSelect.value}`;
-                    const worksheet = workbook.getWorksheet(sheetName);
+                    // Tentar obter a planilha no novo formato primeiro, depois no formato antigo
+                    let worksheet = null;
+                    const bimestreValor = bimestreSelect.value;
+                    const bimestreEquivalenteAntigo = bimestreValor.replace('BIMESTRE', 'BI');
+                    
+                    // Tentativa 1: Novo formato (ex: "Notas 1º BIMESTRE")
+                    const sheetName1 = `Notas ${bimestreValor}`;
+                    worksheet = workbook.getWorksheet(sheetName1);
+                    
+                    // Tentativa 2: Formato antigo (ex: "Notas 1º BI")
+                    if (!worksheet) {
+                        const sheetName2 = `Notas ${bimestreEquivalenteAntigo}`;
+                        worksheet = workbook.getWorksheet(sheetName2);
+                    }
+                    
+                    // Tentativa 3: Tentar formato sem espaço (ex: "Notas1ºBI")
+                    if (!worksheet) {
+                        const sheetName3 = `Notas${bimestreEquivalenteAntigo.replace(' ', '')}`;
+                        worksheet = workbook.getWorksheet(sheetName3);
+                    }
+                    
+                    // Tentativa 4: Tentar formato sem espaço no novo formato (ex: "Notas1ºBIMESTRE")
+                    if (!worksheet) {
+                        const sheetName4 = `Notas${bimestreValor.replace(' ', '')}`;
+                        worksheet = workbook.getWorksheet(sheetName4);
+                    }
+                    
+                    // Tentativa 5: Se ainda não encontrou, tentar a primeira planilha
+                    if (!worksheet) {
+                        worksheet = workbook.worksheets[0];
+                    }
                     
                     if (!worksheet) {
-                        throw new Error(`Planilha "${sheetName}" não encontrada em ${file.name}`);
+                        throw new Error(`Não foi possível encontrar uma planilha válida em ${file.name}`);
                     }
+                    
+                    adicionarLog(`Planilha encontrada para ${disciplina.nome}: ${worksheet.name}`);
                     
                     // Extrair dados das células
                     const dados = [];
-                    
-                    // Início dos dados geralmente começa na linha 8
-                    let emptyRowCount = 0;
                     
                     // Iterar pelas linhas da planilha
                     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
